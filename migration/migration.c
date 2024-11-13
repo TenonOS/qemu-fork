@@ -2170,7 +2170,7 @@ void qmp_migrate(const char *uri, bool has_channels,
     }
 }
 
-void forkd_migrate(const char *uri, bool has_channels,
+void qmp_fork(const char *uri, bool has_channels,
                  MigrationChannelList *channels, bool has_detach, bool detach,
                  bool has_resume, bool resume, Error **errp)
 {

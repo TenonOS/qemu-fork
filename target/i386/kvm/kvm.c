@@ -6034,7 +6034,7 @@ extern void qmp_migrate(const char *uri, bool has_channels,
                  MigrationChannelList *channels, bool has_detach, bool detach,
                  bool has_resume, bool resume, Error **errp);
 
-extern void forkd_migrate(const char *uri, bool has_channels,
+extern void qmp_fork(const char *uri, bool has_channels,
                  MigrationChannelList *channels, bool has_detach, bool detach,
                  bool has_resume, bool resume, Error **errp);
 
@@ -6120,10 +6120,7 @@ static int kvm_handle_hc_fork_vm(struct kvm_run *run)
     sprintf(uri, "file:%s/%s", migrate_path, migrate_filename);
     MigrationState *s = migrate_get_current();
     s->hostname = g_strdup("forkhost");
-//    qmp_migrate(uri, false, NULL, false, false, false, false, &err);
-//    pause();
-
-    forkd_migrate(uri, false, NULL, false, false, false, false, &err);
+    qmp_fork(uri, false, NULL, false, false, false, false, &err);
     /* Return child pid */
     return child_pid;
 }

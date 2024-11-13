@@ -544,6 +544,10 @@ static QemuOptsList qemu_forkgroup_opts = {
             .name = "gid",
             .type = QEMU_OPT_NUMBER,
         },
+        {
+            .name = "pid",
+            .type = QEMU_OPT_NUMBER,
+        },
         { /* end of list */ }
     },
 };

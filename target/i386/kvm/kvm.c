@@ -6019,6 +6019,17 @@ static void get_migrate_path(char **migrate_pathp)
     *migrate_pathp = g_strdup(migrate_path);
 }
 
+static int is_forked_opt_present(void)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+    Error *err;
+    list = qemu_find_opts_err("forked", &err);
+    opts = qemu_opts_find(list, NULL);
+    const char *migrate_path = qemu_opt_get(opts, "path");
+    return migrate_path != NULL;
+}
+
 static void save_gid_to_config(uint group_id)
 {
     QemuOptsList *list;
@@ -6028,6 +6039,17 @@ static void save_gid_to_config(uint group_id)
     list = qemu_find_opts_err("forkgroup", &err);
     opts = qemu_opts_find(list, NULL);
     qemu_opt_set_number(opts, "gid", group_id, &err); 
+}
+
+static void save_pid_to_config(uint process_id)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+    Error *err;
+
+    list = qemu_find_opts_err("forkgroup", &err);
+    opts = qemu_opts_find(list, NULL);
+    qemu_opt_set_number(opts, "pid", process_id, &err); 
 }
 
 extern void qmp_migrate(const char *uri, bool has_channels,
@@ -6114,6 +6136,7 @@ static int kvm_handle_hc_fork_vm(struct kvm_run *run)
         error_report("Receive wrong format gid/pid\n");
     }
     save_gid_to_config(group_id);
+    (void)save_pid_to_config;
     /* Begin transport */
     char *uri = (char *)g_malloc0(100);
     g_assert(uri);
@@ -6121,6 +6144,11 @@ static int kvm_handle_hc_fork_vm(struct kvm_run *run)
     MigrationState *s = migrate_get_current();
     s->hostname = g_strdup("forkhost");
     qmp_fork(uri, false, NULL, false, false, false, false, &err);
+    if (!is_forked_opt_present()) {
+        run->hypercall.ret = child_pid;
+    } else {
+        run->hypercall.ret = 0;
+    }
     /* Return child pid */
     return child_pid;
 }

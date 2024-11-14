@@ -5999,7 +5999,6 @@ static void modify_args(int argc, char ***argvp,
             postfix[i] = '\0';
             int port = g_ascii_strtoll(postfix, NULL, 10);
             port++;
-            //postfix = g_strdup_printf("%d", port);
             argv[serial_index + 1] = g_strdup_printf("%s%d", prefix, port);
         }
     }
@@ -6019,15 +6018,35 @@ static void get_migrate_path(char **migrate_pathp)
     *migrate_pathp = g_strdup(migrate_path);
 }
 
-static int is_forked_opt_present(void)
+static uint get_current_pid(void)
 {
     QemuOptsList *list;
     QemuOpts *opts;
     Error *err;
-    list = qemu_find_opts_err("forked", &err);
+    list = qemu_find_opts_err("forkgroup", &err);
+    opts = qemu_opts_find(list, NULL);
+    return qemu_opt_get_number(opts, "pid", 0);
+}
+
+static bool is_forked(void)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+
+    list = qemu_find_opts("forkable");
+    opts = qemu_opts_find(list, NULL);
+    if (opts)
+        return false;
+    list = qemu_find_opts("forked");
     opts = qemu_opts_find(list, NULL);
     const char *migrate_path = qemu_opt_get(opts, "path");
-    return migrate_path != NULL;
+    const char *migrate_filename = qemu_opt_get(opts, "filename");
+    const char *full_path = g_strdup_printf("%s/%s", migrate_path, migrate_filename);
+    if (access(full_path, F_OK) == 0) {
+        remove(full_path);
+        return true;
+    }
+    return false;
 }
 
 static void save_gid_to_config(uint group_id)
@@ -6039,17 +6058,6 @@ static void save_gid_to_config(uint group_id)
     list = qemu_find_opts_err("forkgroup", &err);
     opts = qemu_opts_find(list, NULL);
     qemu_opt_set_number(opts, "gid", group_id, &err); 
-}
-
-static void save_pid_to_config(uint process_id)
-{
-    QemuOptsList *list;
-    QemuOpts *opts;
-    Error *err;
-
-    list = qemu_find_opts_err("forkgroup", &err);
-    opts = qemu_opts_find(list, NULL);
-    qemu_opt_set_number(opts, "pid", process_id, &err); 
 }
 
 extern void qmp_migrate(const char *uri, bool has_channels,
@@ -6081,76 +6089,81 @@ static int kvm_handle_hc_fork_vm(struct kvm_run *run)
     Error *err = NULL;
     g_autoptr(MigrationChannelList) caps = NULL;
 
-    argc = qemu_get_args(&argv);
-    /* Generate migrate file name */
-    get_migrate_path(&migrate_path);
-    generate_random_filename(&migrate_filename);
-    /* Parse the parameter to boot a new VM */
-    modify_args(argc, &argv, migrate_path, migrate_filename);
-    //FILE *mig_file = fopen(g_strdup_printf("%s/%s",migrate_path, migrate_filename), "w");
-    //g_assert(mig_file);
-    request = parse_args_to_str(argc, argv);
-    /* Send request to forkd */
-    uint16_t serv_port = 9190;
-    const char* serv_ip = "127.0.0.1";
-    int serv_sock = socket(AF_INET, SOCK_STREAM, 0);
-    struct sockaddr_in serv_addr;
-    memset(&serv_addr, 0, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = inet_addr(serv_ip);
-    serv_addr.sin_port = htons(serv_port);
-    
-    if(connect(serv_sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) == -1) {
-        exit(1);
-    }
-    int len = strlen(request);
-    g_assert(len > 0);
-    int windex = 0;
-    /* Send request to forkd */
-    while (windex < len) {
-        windex += write(serv_sock, request + windex, len - windex);
-    }
-    #define BUFFER_SIZE 1024
-    char receive[BUFFER_SIZE];
-    int rindex = 0;
-    memset(receive, 0, BUFFER_SIZE);
+    if (!is_forked()) {
+        argc = qemu_get_args(&argv);
+        /* Generate migrate file name */
+        get_migrate_path(&migrate_path);
+        generate_random_filename(&migrate_filename);
+        /* Parse the parameter to boot a new VM */
+        modify_args(argc, &argv, migrate_path, migrate_filename);
+        request = parse_args_to_str(argc, argv);
+        /* Send request to forkd */
+        uint16_t serv_port = 9190;
+        const char* serv_ip = "127.0.0.1";
+        int serv_sock = socket(AF_INET, SOCK_STREAM, 0);
+        struct sockaddr_in serv_addr;
+        memset(&serv_addr, 0, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        serv_addr.sin_addr.s_addr = inet_addr(serv_ip);
+        serv_addr.sin_port = htons(serv_port);
 
-    while (1) {
-        int str_len = read(serv_sock, receive+rindex, BUFFER_SIZE - rindex);
-        if (str_len == 0) {
-            close(serv_sock);
-            break;
-        } else {
-            rindex += str_len;
-            if (rindex >= BUFFER_SIZE) {
+        if(connect(serv_sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) == -1) {
+            exit(1);
+        }
+        int len = strlen(request);
+        g_assert(len > 0);
+        int windex = 0;
+        /* Send request to forkd */
+        while (windex < len) {
+            windex += write(serv_sock, request + windex, len - windex);
+        }
+        #define BUFFER_SIZE 1024
+        char receive[BUFFER_SIZE];
+        int rindex = 0;
+        memset(receive, 0, BUFFER_SIZE);
+
+        while (1) {
+            int str_len = read(serv_sock, receive+rindex, BUFFER_SIZE - rindex);
+            if (str_len == 0) {
+                close(serv_sock);
                 break;
+            } else {
+                rindex += str_len;
+                if (rindex >= BUFFER_SIZE) {
+                    break;
+                }
             }
         }
-    }
 
-    if (receive[0] >= '0' && receive[0] <= '9') {
-        char* p = strtok(receive, " ");
-        group_id = atoi(p);
-        child_pid = atoi(strtok(NULL, " "));
+        if (receive[0] >= '0' && receive[0] <= '9') {
+            char* p = strtok(receive, " ");
+            group_id = atoi(p);
+            child_pid = atoi(strtok(NULL, " "));
+        } else {
+            error_report("Receive wrong format gid/pid\n");
+        }
+        save_gid_to_config(group_id);
+        /* Begin transport */
+        char *uri = (char *)g_malloc0(100);
+        g_assert(uri);
+        sprintf(uri, "file:%s/%s", migrate_path, migrate_filename);
+        MigrationState *s = migrate_get_current();
+        s->hostname = g_strdup("forkhost");
+        qmp_fork(uri, false, NULL, false, false, false, false, &err);
+        unsigned long long ret = child_pid;
+        
+        //info_report("Child pid: %d\n", get_current_pid());
+        run->hypercall.ret = ret;
+        return 0;
     } else {
-        error_report("Receive wrong format gid/pid\n");
-    }
-    save_gid_to_config(group_id);
-    (void)save_pid_to_config;
-    /* Begin transport */
-    char *uri = (char *)g_malloc0(100);
-    g_assert(uri);
-    sprintf(uri, "file:%s/%s", migrate_path, migrate_filename);
-    MigrationState *s = migrate_get_current();
-    s->hostname = g_strdup("forkhost");
-    qmp_fork(uri, false, NULL, false, false, false, false, &err);
-    if (!is_forked_opt_present()) {
-        run->hypercall.ret = child_pid;
-    } else {
-        run->hypercall.ret = 0;
-    }
-    /* Return child pid */
-    return child_pid;
+        child_pid = get_current_pid();
+        //info_report("Self pid: %d\n", get_current_pid());
+        unsigned long long ret = child_pid;
+        unsigned long long mask = 1ULL << (sizeof(unsigned long long) * 8 - 1);
+        ret |= mask;
+        run->hypercall.ret = ret;
+        return 0;
+    }     
 }
 
 static int kvm_handle_hypercall(struct kvm_run *run)

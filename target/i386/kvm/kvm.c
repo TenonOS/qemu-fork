@@ -5915,6 +5915,64 @@ static void generate_random_filename(char **namep)
     return;
 }
 
+static void get_migrate_path(char **migrate_pathp)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+    Error *err;
+
+    list = qemu_find_opts_err("forkable", &err);
+    opts = qemu_opts_find(list, NULL);
+    if (!opts)
+        list = qemu_find_opts_err("forked", &err);
+    opts = qemu_opts_find(list, NULL); 
+    g_assert(opts);
+    const char *migrate_path = qemu_opt_get(opts, "path");
+    *migrate_pathp = g_strdup(migrate_path);
+}
+
+static uint get_current_pid(void)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+    Error *err;
+    list = qemu_find_opts_err("forkgroup", &err);
+    opts = qemu_opts_find(list, NULL);
+    return qemu_opt_get_number(opts, "pid", 0);
+}
+
+static uint get_current_gid(void)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+    Error *err;
+
+    list = qemu_find_opts_err("forkgroup", &err);
+    opts = qemu_opts_find(list, NULL);
+    return qemu_opt_get_number(opts, "gid", 0);
+}
+
+static bool is_forked(void)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+
+    list = qemu_find_opts("forkable");
+    opts = qemu_opts_find(list, NULL);
+    if (opts)
+        return false;
+    list = qemu_find_opts("forked");
+    opts = qemu_opts_find(list, NULL);
+    const char *migrate_path = qemu_opt_get(opts, "path");
+    const char *migrate_filename = qemu_opt_get(opts, "filename");
+    const char *full_path = g_strdup_printf("%s/%s", migrate_path, migrate_filename);
+    if (access(full_path, F_OK) == 0) {
+        remove(full_path);
+        return true;
+    }
+    return false;
+}
+
 /**
  * If args have forkable, change to forked and modify -kernel
  * If args have forked, change migrate_filename
@@ -6002,51 +6060,10 @@ static void modify_args(int argc, char ***argvp,
             argv[serial_index + 1] = g_strdup_printf("%s%d", prefix, port);
         }
     }
-}
-
-static void get_migrate_path(char **migrate_pathp)
-{
-    QemuOptsList *list;
-    QemuOpts *opts;
-    Error *err;
-
-    list = qemu_find_opts_err("forkable", &err);
-    if (!list)
-        list = qemu_find_opts_err("forked", &err);
-    opts = qemu_opts_find(list, NULL); 
-    const char *migrate_path = qemu_opt_get(opts, "path");
-    *migrate_pathp = g_strdup(migrate_path);
-}
-
-static uint get_current_pid(void)
-{
-    QemuOptsList *list;
-    QemuOpts *opts;
-    Error *err;
-    list = qemu_find_opts_err("forkgroup", &err);
-    opts = qemu_opts_find(list, NULL);
-    return qemu_opt_get_number(opts, "pid", 0);
-}
-
-static bool is_forked(void)
-{
-    QemuOptsList *list;
-    QemuOpts *opts;
-
-    list = qemu_find_opts("forkable");
-    opts = qemu_opts_find(list, NULL);
-    if (opts)
-        return false;
-    list = qemu_find_opts("forked");
-    opts = qemu_opts_find(list, NULL);
-    const char *migrate_path = qemu_opt_get(opts, "path");
-    const char *migrate_filename = qemu_opt_get(opts, "filename");
-    const char *full_path = g_strdup_printf("%s/%s", migrate_path, migrate_filename);
-    if (access(full_path, F_OK) == 0) {
-        remove(full_path);
-        return true;
+    if (forkgroup_index) {
+        argv[forkgroup_index + 1] = g_strdup_printf("gid=%d,pid=%d", 
+                                        get_current_gid(), get_current_pid());
     }
-    return false;
 }
 
 static void save_gid_to_config(uint group_id)

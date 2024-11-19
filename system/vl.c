@@ -162,6 +162,7 @@ static const char *incoming;
 static const char *loadvm;
 static const char *accelerators;
 static bool have_custom_ram_size;
+static bool forked;
 static const char *ram_memdev_id;
 static QDict *machine_opts_dict;
 static QTAILQ_HEAD(, ObjectOption) object_opts = QTAILQ_HEAD_INITIALIZER(object_opts);
@@ -2782,6 +2783,16 @@ void qmp_x_exit_preconfig(Error **errp)
 
     if (incoming) {
         Error *local_err = NULL;
+        if (forked) {
+            QemuOptsList *list = qemu_find_opts("forked");
+            QemuOpts *opts = qemu_opts_find(list, NULL);
+            const char *migrate_path = qemu_opt_get(opts, "path");
+            const char *migrate_filename = qemu_opt_get(opts, "filename");
+            const char *full_path = g_strdup_printf("%s/%s", migrate_path, migrate_filename);
+            while (access(full_path, F_OK) != 0) {
+                /* Waiting on file creation */
+            }
+        }
         if (strcmp(incoming, "defer") != 0) {
             qmp_migrate_incoming(incoming, false, NULL, true, true,
                                  &local_err);
@@ -2959,6 +2970,7 @@ void qemu_init(int argc, char **argv)
                 char *uri = (char *)malloc(100);
                 sprintf(uri, "file:%s/%s", migrate_path, migrate_filename);
                 incoming = uri;
+                forked = true;
                 break;
             case QEMU_OPTION_forkgroup:
                 if (!qemu_opts_parse_noisily(qemu_find_opts("forkgroup"), optarg, false)) {

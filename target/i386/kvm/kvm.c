@@ -6167,6 +6167,7 @@ static int kvm_handle_hc_fork_vm(struct kvm_run *run)
         MigrationState *s = migrate_get_current();
         s->hostname = g_strdup("forkhost");
         qmp_fork(uri, false, NULL, false, false, false, false, &err);
+        
         unsigned long long ret = child_pid;
         
         //info_report("Child pid: %d\n", get_current_pid());

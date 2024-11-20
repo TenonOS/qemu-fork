@@ -2180,6 +2180,8 @@ void qmp_fork(const char *uri, bool has_channels,
     g_autoptr(MigrationChannel) channel = NULL;
     MigrationAddress *addr = NULL;
 
+    s->fork_migration = true;
+
     /*
      * Having preliminary checks for uri and channel
      */
@@ -2223,6 +2225,10 @@ void qmp_fork(const char *uri, bool has_channels,
     }
 
     file_start_outgoing_migration_without_thread(s, &addr->u.file, &local_err);
+
+    if (!resume_requested) {
+            yank_unregister_instance(MIGRATION_YANK_INSTANCE);
+    }
 
     if (local_err) {
         if (!resume_requested) {

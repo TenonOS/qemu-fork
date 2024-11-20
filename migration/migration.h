@@ -457,6 +457,7 @@ struct MigrationState {
     bool switchover_acked;
     /* Is this a rdma migration */
     bool rdma_migration;
+    bool fork_migration;
 };
 
 void migrate_set_state(MigrationStatus *state, MigrationStatus old_state,

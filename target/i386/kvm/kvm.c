@@ -6164,8 +6164,8 @@ static int kvm_handle_hc_fork_vm(struct kvm_run *run)
         char *uri = (char *)g_malloc0(100);
         g_assert(uri);
         sprintf(uri, "file:%s/%s", migrate_path, migrate_filename);
-        MigrationState *s = migrate_get_current();
-        s->hostname = g_strdup("forkhost");
+        // MigrationState *s = migrate_get_current();
+        // s->hostname = g_strdup("forkhost");
         qmp_fork(uri, false, NULL, false, false, false, false, &err);
         close(serv_sock);
         unsigned long long ret = child_pid;

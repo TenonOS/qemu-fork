@@ -6142,7 +6142,7 @@ static int kvm_handle_hc_fork_vm(struct kvm_run *run)
         while (1) {
             int str_len = read(serv_sock, receive+rindex, BUFFER_SIZE - rindex);
             if (str_len == 0) {
-                close(serv_sock);
+                // close(serv_sock);
                 break;
             } else {
                 rindex += str_len;
@@ -6167,7 +6167,7 @@ static int kvm_handle_hc_fork_vm(struct kvm_run *run)
         MigrationState *s = migrate_get_current();
         s->hostname = g_strdup("forkhost");
         qmp_fork(uri, false, NULL, false, false, false, false, &err);
-        
+        close(serv_sock);
         unsigned long long ret = child_pid;
         
         //info_report("Child pid: %d\n", get_current_pid());

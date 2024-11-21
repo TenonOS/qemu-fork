@@ -6165,9 +6165,9 @@ static int kvm_handle_hc_fork_vm(struct kvm_run *run)
         sprintf(uri, "file:%s/%s", migrate_path, migrate_filename);
         // MigrationState *s = migrate_get_current();
         // s->hostname = g_strdup("forkhost");
-        info_report("[qemu] qmp forking with uri: %s\n", uri);
+        // info_report("[qemu] qmp forking with uri: %s\n", uri);
         qmp_fork(uri, false, NULL, false, false, false, false, &err);
-        info_report("[qemu] qmp fork done\n");
+        // info_report("[qemu] qmp fork done\n");
         if (err) {
             info_report("[qemu] error!\n");
             error_report_err(err);

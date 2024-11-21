@@ -2970,7 +2970,7 @@ void qemu_init(int argc, char **argv)
                 char *uri = (char *)malloc(100);
                 sprintf(uri, "file:%s/%s", migrate_path, migrate_filename);
                 incoming = uri;
-                //forked = true;
+                forked = true;
                 break;
             case QEMU_OPTION_forkgroup:
                 if (!qemu_opts_parse_noisily(qemu_find_opts("forkgroup"), optarg, false)) {
@@ -3812,8 +3812,9 @@ void qemu_init(int argc, char **argv)
         exit(1);
     }
     trace_init_file();
-
-    qemu_copy_forkable_image(machine_opts_dict);
+    if (!forked) {
+        qemu_copy_forkable_image(machine_opts_dict);
+    }
 
     qemu_init_main_loop(&error_fatal);
     cpu_timers_init();

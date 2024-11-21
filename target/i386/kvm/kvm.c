@@ -5906,8 +5906,7 @@ static void generate_random_filename(char **namep)
     char *name;
     int random_number;
     
-    srand((unsigned int)time(NULL));
-    random_number = rand() % 9000 + 1000;
+    random_number = g_random_int_range(1000, 9999);
     name = (char *)g_malloc0(20);
     g_assert(name);
     sprintf(name, "%04d%s", random_number, "tempfile");
@@ -6166,7 +6165,13 @@ static int kvm_handle_hc_fork_vm(struct kvm_run *run)
         sprintf(uri, "file:%s/%s", migrate_path, migrate_filename);
         // MigrationState *s = migrate_get_current();
         // s->hostname = g_strdup("forkhost");
+        info_report("[qemu] qmp forking with uri: %s\n", uri);
         qmp_fork(uri, false, NULL, false, false, false, false, &err);
+        info_report("[qemu] qmp fork done\n");
+        if (err) {
+            info_report("[qemu] error!\n");
+            error_report_err(err);
+        }
         close(serv_sock);
         unsigned long long ret = child_pid;
         

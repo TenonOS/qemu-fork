@@ -5951,6 +5951,28 @@ static uint get_current_gid(void)
     return qemu_opt_get_number(opts, "gid", 0);
 }
 
+static const char* get_forkd_ip(void)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+    Error *err;
+
+    list = qemu_find_opts_err("forkdaemon", &err);
+    opts = qemu_opts_find(list, NULL);
+    return qemu_opt_get(opts, "ipaddr");
+}
+
+static uint get_forkd_port(void)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+    Error *err;
+
+    list = qemu_find_opts_err("forkdaemon", &err);
+    opts = qemu_opts_find(list, NULL);
+    return qemu_opt_get_number(opts, "port", 0);
+}
+
 static bool is_forked(void)
 {
     QemuOptsList *list;
@@ -6114,8 +6136,8 @@ static int kvm_handle_hc_fork_vm(struct kvm_run *run)
         modify_args(argc, &argv, migrate_path, migrate_filename);
         request = parse_args_to_str(argc, argv);
         /* Send request to forkd */
-        uint16_t serv_port = 9190;
-        const char* serv_ip = "127.0.0.1";
+        uint16_t serv_port = get_forkd_port();
+        const char* serv_ip = get_forkd_ip();
         int serv_sock = socket(AF_INET, SOCK_STREAM, 0);
         struct sockaddr_in serv_addr;
         memset(&serv_addr, 0, sizeof(serv_addr));

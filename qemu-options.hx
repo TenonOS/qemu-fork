@@ -186,10 +186,17 @@ SRST
 ERST
 
 DEF("forked", HAS_ARG, QEMU_OPTION_forked,
-    "-forked path   Restore vm from path\n", QEMU_ARCH_ALL)
+    "-forked path,filename   Restore vm from path/filename\n", QEMU_ARCH_ALL)
 SRST
 ``-forked``
     Restore vm from path.
+ERST
+
+DEF("forkdaemon", HAS_ARG, QEMU_OPTION_forkdaemon,
+    "-forkdaemon ip,port      Set fork group id\n", QEMU_ARCH_ALL)
+SRST
+``-forkdaemon``
+    Set this fork daemon's ip and port.
 ERST
 
 DEF("forkgroup", HAS_ARG, QEMU_OPTION_forkgroup,

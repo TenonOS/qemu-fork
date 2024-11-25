@@ -552,6 +552,22 @@ static QemuOptsList qemu_forkgroup_opts = {
     },
 };
 
+static QemuOptsList qemu_fork_daemon_opts = {
+    .name = "forkdaemon",
+    .merge_lists = true,
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_fork_daemon_opts.head),
+    .desc = {
+        {
+            .name = "ipaddr",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "port",
+            .type = QEMU_OPT_NUMBER,
+        },
+        { /* end of list */ }
+    },
+};
+
 const char *qemu_get_vm_name(void)
 {
     return qemu_name;
@@ -2900,6 +2916,7 @@ void qemu_init(int argc, char **argv)
     qemu_add_opts(&qemu_forkable_opts);
     qemu_add_opts(&qemu_forked_opts);
     qemu_add_opts(&qemu_forkgroup_opts);
+    qemu_add_opts(&qemu_fork_daemon_opts);
     qemu_add_run_with_opts();
     module_call_init(MODULE_INIT_OPTS);
 
@@ -2974,6 +2991,11 @@ void qemu_init(int argc, char **argv)
                 break;
             case QEMU_OPTION_forkgroup:
                 if (!qemu_opts_parse_noisily(qemu_find_opts("forkgroup"), optarg, false)) {
+                     exit(1);
+                }
+                break;
+            case QEMU_OPTION_forkdaemon:
+                if (!qemu_opts_parse_noisily(qemu_find_opts("forkdaemon"), optarg, false)) {
                      exit(1);
                 }
                 break;

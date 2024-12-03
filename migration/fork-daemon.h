@@ -24,7 +24,7 @@ typedef struct Package{
 
 void readlen(int serv_sock, char* buffer, int len);
 void receive_package(int serv_sock, Package* pack);
-char* serialize_package(Package *p);
+char* serialize_package(Package *p, int* str_len);
 void send_package(Package* p, int serv_sock);
 const char* get_forkd_ip(void);
 uint64_t get_forkd_port(void);

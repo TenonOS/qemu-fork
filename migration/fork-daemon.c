@@ -39,9 +39,9 @@ void receive_package(int serv_sock, Package* pack)
     return ;
 }
 
-char* serialize_package(Package *p) 
-{
-    char* buf = (char*)malloc(sizeof(p->command) + sizeof(p->len) + p->len);
+char* serialize_package(Package *p, int* str_len) {
+    *str_len = sizeof(p->command) + sizeof(p->len) + p->len;
+    char* buf = (char*)malloc(*str_len);
     int offset = 0;
     memcpy(buf, &p->command, sizeof(p->command));
     offset += sizeof(p->command);
@@ -50,20 +50,23 @@ char* serialize_package(Package *p)
         offset += sizeof(p->len);
         memcpy(buf + offset, p->data, p->len);
     }
+    // check_str(buf, str_len);
     return buf;
 }
 
-void send_package(Package* p, int serv_sock) 
-{
-    char* message = serialize_package(p);
-    int len = p->len;
+void send_package(Package* p, int serv_sock) {
+    int str_len;
+    char* message = serialize_package(p, &str_len);
+    // check_str(message, strlen(message));
+    // int len = strlen(message);
     int windex = 0;
-    while (windex < len) {
-        windex += write(serv_sock, message + windex, len - windex);
+    while (windex < str_len) {
+        windex += write(serv_sock, message + windex, str_len - windex);
     }
     free(message);
-    if (p->data != NULL)
+    if (p->data!= NULL)
         free(p->data);
+    // free(p);
 }
 
 const char* get_forkd_ip(void)

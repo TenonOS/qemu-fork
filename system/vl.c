@@ -164,6 +164,7 @@ static const char *loadvm;
 static const char *accelerators;
 static bool have_custom_ram_size;
 static bool forked;
+static bool fork_process;
 static const char *ram_memdev_id;
 static QDict *machine_opts_dict;
 static QTAILQ_HEAD(, ObjectOption) object_opts = QTAILQ_HEAD_INITIALIZER(object_opts);
@@ -3053,7 +3054,7 @@ void qemu_init(int argc, char **argv)
                 if (!qemu_opts_parse_noisily(qemu_find_opts("forkdaemon"), optarg, false)) {
                      exit(1);
                 }
-                forkd_sock = connect_to_forkd();
+                fork_process = true;
                 break;
             case QEMU_OPTION_cpu:
                 /* hw initialization will check this */
@@ -3890,9 +3891,14 @@ void qemu_init(int argc, char **argv)
         exit(1);
     }
     trace_init_file();
-    if (!forked) {
-        qemu_copy_forkable_image(machine_opts_dict);
+    if (fork_process) {
+        forkd_sock = connect_to_forkd();
+        if (!forked) {
+            qemu_copy_forkable_image(machine_opts_dict);
+        }
     }
+
+    
 
     qemu_init_main_loop(&error_fatal);
     cpu_timers_init();

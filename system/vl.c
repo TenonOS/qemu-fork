@@ -87,6 +87,7 @@
 #include "sysemu/cpu-timers.h"
 #include "migration/colo.h"
 #include "migration/postcopy-ram.h"
+#include "migration/fork-daemon.h"
 #include "sysemu/kvm.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qemu/option.h"
@@ -197,6 +198,7 @@ static int default_net = 1;
 
 int global_argc;
 char **global_argv;
+int forkd_sock;
 
 static const struct {
     const char *driver;
@@ -2828,6 +2830,11 @@ int qemu_get_args(char ***argv_p)
     return global_argc;
 }
 
+int qemu_get_forkd_sock(void)
+{
+    return forkd_sock;
+}
+
 static void qemu_copy_forkable_image(const QDict *machine_opts)
 {
     const char *kernel_path = qdict_get_try_str(machine_opts, "kernel");
@@ -2867,6 +2874,54 @@ static int qemu_copy_args(int argc, char **argv){
     }
     global_argv[argc] = NULL;
     return 1;
+}
+
+static int connect_to_forkd(void)
+{
+    int serv_sock;
+    uint64_t gid;
+    uint64_t pid;
+    struct sockaddr_in serv_addr;
+    
+    serv_sock = socket(AF_INET, SOCK_STREAM, 0);
+    
+    memset(&serv_addr, 0, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = inet_addr(get_forkd_ip());
+    serv_addr.sin_port = htons(get_forkd_port());
+    if(connect(serv_sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) == -1) {
+        error_report("socket connect failed");
+        exit(1);
+    }
+    
+    gid = get_current_gid();
+    pid = get_current_pid();
+    Package* send_pack = (Package*)malloc(sizeof(Package));
+    send_pack->command = CMD_INIT;
+    char* temp = (char*)malloc(sizeof(char)*BUF_SIZE);
+    // 换成自己的gid和pid
+    send_pack->len = sprintf(temp, "%d %d", (int)gid, (int)pid);
+    send_pack->data = (char*)malloc(send_pack->len);
+    memcpy(send_pack->data, temp, send_pack->len);
+    free(temp);
+    send_package(send_pack, serv_sock);
+    free(send_pack);
+
+    // 如果自己的 gid 是 0，那么就接收新分配的 gid 并设置
+    // 否则不需要额外处理
+    if (gid == 0) {
+        Package* receive_pack = (Package*)malloc(sizeof(Package));
+        receive_package(serv_sock, receive_pack);
+        if (receive_pack->command == CMD_INITRET) {
+            char* receive = receive_pack->data;
+            char* p = strtok(receive, " ");
+            int new_gid = atoi(p);
+            save_gid_to_config(new_gid);
+        } else {
+            error_report("expect %d, get %d", CMD_INITRET, receive_pack->command);
+        }
+    }
+    return serv_sock;
 }
 
 void qemu_init(int argc, char **argv)
@@ -2998,6 +3053,7 @@ void qemu_init(int argc, char **argv)
                 if (!qemu_opts_parse_noisily(qemu_find_opts("forkdaemon"), optarg, false)) {
                      exit(1);
                 }
+                forkd_sock = connect_to_forkd();
                 break;
             case QEMU_OPTION_cpu:
                 /* hw initialization will check this */

@@ -30,6 +30,7 @@ system_ss.add(files(
   'socket.c',
   'tls.c',
   'threadinfo.c',
+  'fork-daemon.c',
 ), gnutls, zlib)
 
 if get_option('replication').allowed()

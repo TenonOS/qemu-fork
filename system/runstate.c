@@ -34,6 +34,7 @@
 #include "hw/boards.h"
 #include "migration/misc.h"
 #include "migration/postcopy-ram.h"
+#include "migration/fork-daemon.h"
 #include "monitor/monitor.h"
 #include "net/net.h"
 #include "net/vhost_net.h"
@@ -774,6 +775,7 @@ static bool main_loop_should_exit(int *status)
     if (request) {
         qemu_kill_report();
         qemu_system_shutdown(request);
+        close_forkd_socket();
         if (shutdown_action == SHUTDOWN_ACTION_PAUSE) {
             vm_stop(RUN_STATE_SHUTDOWN);
         } else {

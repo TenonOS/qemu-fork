@@ -100,6 +100,7 @@ void qemu_init(int argc, char **argv);
 int qemu_main_loop(void);
 void qemu_cleanup(int);
 int qemu_get_args(char ***argvp);
+int qemu_get_forkd_sock(void);
 
 extern QemuOptsList qemu_legacy_drive_opts;
 extern QemuOptsList qemu_common_drive_opts;

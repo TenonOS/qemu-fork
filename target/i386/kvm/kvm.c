@@ -6063,6 +6063,7 @@ extern void qmp_fork(const char *uri, bool has_channels,
 
 static int kvm_handle_hc_fork_vm(struct kvm_run *run)
 {
+    info_report("handle fork vm");
     /* Get this vm's parameter */
     int argc;
     char **argv;
@@ -6096,6 +6097,7 @@ static int kvm_handle_hc_fork_vm(struct kvm_run *run)
         char* receive = receive_pack->data;
         char* p = strtok(receive, " ");
         child_pid = atoi(p);
+        free(receive);
 
         /* Begin transport */
         char *uri = (char *)g_malloc0(100);
@@ -6114,6 +6116,9 @@ static int kvm_handle_hc_fork_vm(struct kvm_run *run)
         unsigned long long ret = child_pid;
         //info_report("Child pid: %d\n", get_current_pid());
         run->hypercall.ret = ret;
+        // 等待 do_fork 父进程返回
+        receive_package(serv_sock, receive_pack);
+        free(receive_pack);
         return 0;
     } else {
         child_pid = get_current_pid();
@@ -6128,6 +6133,7 @@ static int kvm_handle_hc_fork_vm(struct kvm_run *run)
 
 static int kvm_handle_hc_wait_vm(struct kvm_run *run)
 {
+    info_report("handle wait pid");
     int gid = get_current_gid();
     int pid = run->hypercall.args[0];
     int serv_sock = qemu_get_forkd_sock();
@@ -6147,6 +6153,7 @@ static int kvm_handle_hc_wait_vm(struct kvm_run *run)
     // 该函数返回，说明相应进程已经结束，waitpid 直接返回等待的 pid 就行了
     receive_package(serv_sock, receive_pack);
     run->hypercall.ret = pid;
+    info_report("wait pid done");
     return 0;
 }
 

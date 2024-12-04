@@ -6157,22 +6157,14 @@ static int kvm_handle_hc_wait_vm(struct kvm_run *run)
     return 0;
 }
 
-// static int kvm_handle_hc_kill_vm(struct kvm_run *run)
-// {
-//     int gid = get_current_gid();
-//     int pid = run->hypercall.args[0];
-//     int serv_sock = qemu_get_forkd_sock();
-//     Package* send_pack = (Package*)malloc(sizeof(Package));
-//     send_pack->command = CMD_KILL;
-//     char* temp = (char*)malloc(sizeof(char)*BUF_SIZE);
-//     // 换成要杀死进程的 gid pid
-//     send_pack->len = sprintf(temp, "%d %d", gid, pid);
-//     send_pack->data = (char*)malloc(send_pack->len);
-//     memcpy(send_pack->data, temp, send_pack->len);
-//     free(temp);
-//     send_package(send_pack, serv_sock);
-//     free(send_pack);
-// }
+static int kvm_handle_hc_exit_vm(struct kvm_run *run)
+{
+    close_forkd_socket();
+    for (;;) {
+        sleep(1);
+    }
+    return 0;
+}
 
 static int kvm_handle_hypercall(struct kvm_run *run)
 {
@@ -6182,8 +6174,8 @@ static int kvm_handle_hypercall(struct kvm_run *run)
         return kvm_handle_hc_fork_vm(run);
     if (run->hypercall.nr == KVM_HC_WAIT_VM)
         return kvm_handle_hc_wait_vm(run);
-    // if (run->hypercall.nr == KVM_HC_KILL_VM)
-    //     return kvm_handle_hc_fork_vm(run);
+    if (run->hypercall.nr == KVM_HC_EXIT_VM)
+        return kvm_handle_hc_exit_vm(run);
     return -EINVAL;
 }
 

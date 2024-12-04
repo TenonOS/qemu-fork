@@ -32,7 +32,7 @@
 #define KVM_HC_MAP_GPA_RANGE		12
 #define KVM_HC_FORK_VM         13
 #define KVM_HC_WAIT_VM         14
-#define KVM_HC_KILL_VM         15
+#define KVM_HC_EXIT_VM         15
 /*
  * hypercalls use architecture specific
  */

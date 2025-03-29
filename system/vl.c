@@ -2847,12 +2847,13 @@ static void qemu_copy_forkable_image(const QDict *machine_opts)
     if(copy_path != NULL && kernel_path != NULL){
         /* Copy vm's image to given path */
         int ret;
-        char command[100];
+        char *command = g_malloc0(1000);
         sprintf(command, "cp %s %s", kernel_path, copy_path);
         ret = system(command);
         if(ret == -1){
             error_report("Copy image failed");
         }
+        g_free(command);
     }
 }
 

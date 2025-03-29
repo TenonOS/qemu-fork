@@ -5952,6 +5952,9 @@ static bool is_forked(void)
     return false;
 }
 
+bool first_fork = true;
+int udp_port;
+
 /**
  * If args have forkable, change to forked and modify -kernel
  * If args have forked, change migrate_filename
@@ -6034,9 +6037,14 @@ static void modify_args(int argc, char ***argvp,
                 postfix[i - 5] = serial_argv[i];
             }
             postfix[i] = '\0';
-            int port = g_ascii_strtoll(postfix, NULL, 10);
-            port++;
-            argv[serial_index + 1] = g_strdup_printf("%s%d", prefix, port);
+            if (first_fork) {
+                udp_port = g_ascii_strtoll(postfix, NULL, 10);
+                udp_port++;
+                first_fork = false;
+            } else {
+                udp_port += 10;
+            }
+            argv[serial_index + 1] = g_strdup_printf("%s%d", prefix, udp_port);
         }
     }
     if (forkgroup_index) {
